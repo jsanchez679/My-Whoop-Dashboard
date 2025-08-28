@@ -1,0 +1,109 @@
+hr {
+            border-top: 2px solid gray;
+}
+
+.upload-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+}
+
+.upload-box {
+            border-radius: 8px;
+            padding: 1rem;
+            background-color: #f2f2f3;
+            }
+
+.summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+            margin-top: 1rem;
+}
+
+.summary-card {
+            background-color: #f9fafb;
+            padding: .5rem;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            text-align: center;
+            }
+
+/* Uniform column widths */
+.uniform-columns table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.uniform-columns table th,
+.uniform-columns table td {
+    width: 20%; /* 5 columns = 20% each */
+}
+
+/* .custom-table-container table thead th:nth-child(2) { background-color: #c7ee5394 !important; } */
+.custom-table-container table tbody td:nth-child(2) { background-color: #c7ee5375 !important; }
+/* .custom-table-container table thead th:nth-child(3) { background-color: #eee4538b !important; } */
+.custom-table-container table tbody td:nth-child(3) { background-color: #eee45368 !important; }
+/* .custom-table-container table thead th:nth-child(4) { background-color: #74daf191 !important; } */
+.custom-table-container table tbody td:nth-child(4) { background-color: #74daf167 !important; }
+/* .custom-table-container table thead th:nth-child(5) { background-color: #ea5c5ca8 !important; } */
+.custom-table-container table tbody td:nth-child(5) { background-color: #ea5c5c63 !important; }
+
+.dropdown-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.dropdown-button {
+    width: 100%;
+    margin-top: 5px;
+}
+
+.tabs-group {
+    padding-top: 20px;
+}
+
+.app-div {
+    padding: 10px;
+}
+
+.data-table-div {
+    margin: auto;
+    padding: 10px;
+}
+
+.budget-label {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.budget-text {
+    font-size: 20px;
+}
+
+.budget-text-value {
+    font-size: 20px;
+    font-style: italic;
+}
+
+.budget-progress-bar {
+    height: 20px;
+}
+
+.budget-tooltip {
+    font-size: 18px;
+}
+
+.checklist {
+    text-align: center;
+    padding-top: 10px;
+    padding-bottom: 20px;
+}
+
+@media(max-width: 800px) {
+    .dropdown-container {
+        grid-template-columns: 1fr;
+    }
+}
