@@ -4,8 +4,10 @@ import plotly.graph_objects as go
 import pandas as pd
 
 # Local Imports
-from src.components.layout import (create_layout, render_overview_tab, 
-                                   render_trends_tab, create_cycle_overlay_plot)
+from src.components.layout import (create_layout, render_overview_tab,
+                                   render_sleep_tab, render_recovery_tab, 
+                                   render_trends_tab, create_cycle_overlay_plot, 
+                                   create_phase_legend, render_stats_tab)
 from src.components import ids
 from src.data.loader import parse_contents, load_data, process_data
 
@@ -123,33 +125,34 @@ def main() -> None:
             return render_overview_tab(df)
         # elif active_tab == 'calendar':
         #     return render_calendar_tab(df)
-        # elif active_tab == 'sleep':
-        #     return render_sleep_tab(df)
-        # elif active_tab == 'recovery':
-        #     return render_recovery_tab(df)
+        elif active_tab == 'sleep':
+            return render_sleep_tab(df)
+        elif active_tab == 'recovery':
+            return render_recovery_tab(df)
         elif active_tab == 'trends':
             return render_trends_tab(df)
-        # elif active_tab == 'stats':
-        #     return render_stats_tab(df)
+        elif active_tab == 'stats':
+            return render_stats_tab(df)
 
     # Callback for updating calendar visualizations
     @app.callback(
         [Output(ids.CYCLE_OVERLAY_PLOT, 'figure'), 
-        Output(ids.CYCLE_OVERLAY_AVERAGE, 'figure')],
+         Output(ids.CYCLE_OVERLAY_LEGEND, 'figure')], 
         [Input(ids.TREND_METRIC_DROPDOWN, 'value'),
         Input(ids.PROCESSED_DATA, 'children')]
     )
     def update_calendar_plots(selected_metric, processed_data):
         if processed_data is None or selected_metric is None:
-            return go.Figure()
+            return go.Figure(), go.Figure()
         
         df = load_data(processed_data=processed_data)
         
         # Create cycle overlay plot
-        overlay_fig, overlay_ave = create_cycle_overlay_plot(df, selected_metric, 
+        overlay_fig = create_cycle_overlay_plot(df, selected_metric, 
                                                 f"Cycle Overlay - {selected_metric}")
+        legend_fig = create_phase_legend()
         
-        return overlay_fig, overlay_ave
+        return [overlay_fig, legend_fig]
 
     # Run app
     app.run(debug=True)

@@ -3,9 +3,11 @@ import dash_bootstrap_components as dbc
 from src.components import ids
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import pandas as pd
+import numpy as np
 
-from src.data.loader import parse_date
+from src.data import loader as ld 
 
 def create_layout(app: Dash) -> html.Div:
     # Define the app layout
@@ -81,7 +83,7 @@ def create_layout(app: Dash) -> html.Div:
                         dcc.Tabs(id=ids.TABS, value="overview", 
                                  children=[
                                     dcc.Tab(label="Overview", value="overview"),
-                                    dcc.Tab(label="Calendar View", value="calendar"),
+                                    # dcc.Tab(label="Calendar View", value="calendar"),
                                     dcc.Tab(label="Sleep Analysis", value="sleep"),
                                     dcc.Tab(label="Recovery & Strain", value="recovery"),
                                     dcc.Tab(label="Trends", value="trends"),
@@ -116,6 +118,83 @@ def create_styled_table(ov_data: pd.DataFrame) -> html.Div:
         className="text-center uniform-columns"
     )
     return html.Div([table], className="custom-table-container")
+
+def render_sleep_tab(df: pd.DataFrame) -> dbc.Container:
+    """Render the sleep analysis tab"""
+    sleep_metrics = [ids.SLEEP_PERFORMANCE, ids.SLEEP_EFFICIENCY, ids.REM_DURATION, 
+                    ids.DEEP_SLEEP_DURATION, ids.LIGHT_SLEEP_DURATION]
+    
+    fig = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=(ids.SLEEP_PERFORMANCE, ids.SLEEP_EFFICIENCY, 
+                        ids.REM_DURATION, ids.DEEP_SLEEP_DURATION),
+        specs=[[{'secondary_y': False}, {'secondary_y': False}],
+               [{'secondary_y': False}, {'secondary_y': False}]]
+    )
+    
+    phase_colors = ['#EA5C5C', '#C7EE53', '#EEE453', '#74DAF1']
+    phase_names = ['Menstrual', 'Follicular', 'Ovulatory', 'Luteal']
+    
+    for i, metric in enumerate(sleep_metrics[:4]):
+        if metric in df.columns:
+            row = (i // 2) + 1
+            col = (i % 2) + 1
+            
+            for j, phase in enumerate(phase_names):
+                data = df[df[ids.PHASE] == phase][metric].dropna()
+                
+                fig.add_trace(
+                    go.Box(y=data, name=f'{phase}', 
+                          marker_color=phase_colors[j], showlegend=(i==0)),
+                    row=row, col=col
+                )
+    
+    fig.update_layout(height=600, title_text="Sleep Metrics by Cycle Phase")
+    
+    return html.Div([
+        dcc.Graph(figure=fig)
+    ])
+
+def render_recovery_tab(df: pd.DataFrame) -> dbc.Container:
+    """Render the recovery & strain analysis tab
+        TURN THIS INTO A SIMILAR STRAIN AND RECOVERY GRAPH FROM WHOOP
+    """
+    # Recovery and strain over time
+    fig = make_subplots(
+        rows=2, cols=1,
+        subplot_titles=('Recovery Score Over Time', 'Day Strain Over Time'),
+        shared_xaxes=True
+    )
+    
+    # Recovery score
+    colors = df[ids.PHASE].map({'Menstrual':'#EA5C5C', 'Follicular':'#C7EE53', 
+                                'Ovulatory':'#EEE453', 'Luteal': '#74DAF1'})
+    fig.add_trace(
+        go.Scatter(x=df[ids.CYCLE_START_DATE], y=df[ids.RECOVERY_SCORE],
+                  mode='markers+lines', name=ids.RECOVERY_SCORE,
+                  marker=dict(color=colors, size=8),
+                  line=dict(color='gray', width=1)),
+        row=1, col=1
+    )
+    
+    # Day strain
+    if 'Day Strain' in df.columns:
+        fig.add_trace(
+            go.Scatter(x=df[ids.CYCLE_START_DATE], y=df[ids.DAY_STRAIN],
+                      mode='markers+lines', name=ids.DAY_STRAIN,
+                      marker=dict(color=colors, size=8),
+                      line=dict(color='gray', width=1)),
+            row=2, col=1
+        )
+    
+    fig.update_layout(height=600, title_text="Recovery and Strain Analysis")
+    fig.update_xaxes(title_text="Date", row=2, col=1)
+    fig.update_yaxes(title_text=ids.RECOVERY_SCORE, row=1, col=1)
+    fig.update_yaxes(title_text=ids.DAY_STRAIN, row=2, col=1)
+    
+    return html.Div([
+        dcc.Graph(figure=fig)
+    ])
 
 def render_overview_tab(df: pd.DataFrame) -> dbc.Container:
 
@@ -260,14 +339,14 @@ def render_trends_tab(df: pd.DataFrame) -> dbc.Container:
                     dcc.Dropdown(
                         id=ids.TREND_METRIC_DROPDOWN,
                         options=[
-                            {'label': 'Recovery Score %', 'value': 'Recovery score %'},
-                            {'label': 'Resting Heart Rate (bpm)', 'value': 'Resting heart rate (bpm)'},
-                            {'label': 'Heart Rate Variability (ms)', 'value': 'Heart rate variability (ms)'},
-                            {'label': 'Sleep Performance %', 'value': 'Sleep performance %'},
-                            {'label': 'Day Strain', 'value': 'Day Strain'},
-                            {'label': 'Sleep Efficiency %', 'value': 'Sleep efficiency %'}
+                            {'label': ids.RECOVERY_SCORE, 'value': ids.RECOVERY_SCORE},
+                            {'label': ids.RESTING_HR, 'value': ids.RESTING_HR},
+                            {'label': ids.HRV, 'value': ids.HRV},
+                            {'label': ids.SLEEP_PERFORMANCE, 'value': ids.SLEEP_PERFORMANCE},
+                            {'label': ids.DAY_STRAIN, 'value': ids.DAY_STRAIN},
+                            {'label': ids.SLEEP_EFFICIENCY, 'value': ids.SLEEP_EFFICIENCY}
                         ],
-                        value='Recovery score %',
+                        value=ids.RECOVERY_SCORE,
                         style={'margin-bottom': '20px'}
                     )
                 ]),
@@ -275,30 +354,33 @@ def render_trends_tab(df: pd.DataFrame) -> dbc.Container:
                 # Cycle overlay plot
                 html.Div([
                     html.H4("Cycle Overlay Plot"),
-                    html.P("Multiple cycles overlaid to show patterns. Each line represents a different cycle starting from menstruation."),
-                    dcc.Graph(id=ids.CYCLE_OVERLAY_PLOT)
-                ], style={'margin-top': '30px'}),
-                # Cycle overlay average plot
+                    html.P("Multiple cycles overlaid to show patterns. Each line represents a different cycle starting from the first day of menstruation."),
+                    dcc.Graph(id=ids.CYCLE_OVERLAY_PLOT, 
+                              style={'margin-bottom': '0px',
+                                     'padding-bottom': '0px'})
+                ], style={'margin-top': '20px', 
+                          'margin-bottom': '20px',
+                          'padding-bottom': '0px'}),
                 html.Div([
-                    html.H4("Cycle Overlay Average Plot"),
-                    html.P("Average of Multiple cycles to show patterns."),
-                    dcc.Graph(id=ids.CYCLE_OVERLAY_AVERAGE)
-                ], style={'margin-top': '30px'})
+                     dcc.Graph(id=ids.CYCLE_OVERLAY_LEGEND, 
+                               config={'displayModeBar': False},
+                               style={'margin-top': '0px',
+                                      'margin-bottom': '20px'})
+                ], style={'margin-top': '0px', 
+                          'margin-bottom': '0px',
+                          'padding-top': '0px'}),
             ])
-
 
 def create_cycle_overlay_plot(df: pd.DataFrame, metric: str, title: str) -> go.Figure:
     """Create an overlay plot showing multiple cycles aligned by cycle day"""
-    #Hereee start by understanding how the data is processed and now used the 
-    # already processed dataframe
     
     if ids.CYCLE_START_DATE not in df.columns or metric not in df.columns:
         return go.Figure()
     
     # Filter menstrual cycles only
     first_day_menstrual_cycle = df[(df[ids.CYCLE_DAY_NUMBER] == 1) & (df[ids.CYCLE_START] == True)].copy()
-    first_day_menstrual_cycle[ids.CYCLE_START_DATE] = first_day_menstrual_cycle[ids.CYCLE_START_DATE].apply(parse_date)
-    df[ids.CYCLE_START_DATE] = df[ids.CYCLE_START_DATE].apply(parse_date)
+    first_day_menstrual_cycle[ids.CYCLE_START_DATE] = first_day_menstrual_cycle[ids.CYCLE_START_DATE].apply(ld.parse_date)
+    df[ids.CYCLE_START_DATE] = df[ids.CYCLE_START_DATE].apply(ld.parse_date)
 
     if len(first_day_menstrual_cycle) == 0:
         return go.Figure()
@@ -308,8 +390,12 @@ def create_cycle_overlay_plot(df: pd.DataFrame, metric: str, title: str) -> go.F
     get_rows = first_day_menstrual_cycle.index
 
     # Create a figure
-    fig = go.Figure()
-    fig2 = go.Figure()
+    fig = make_subplots(rows=3, cols=1, 
+                        # subplot_titles=['Cycle Overlay Plot','Cycle Average Plot', 'Phase'],
+                        shared_xaxes = True, shared_yaxes=False, 
+                        x_title = 'Cycle Day', y_title=metric,
+                        row_heights=[0.475, 0.475, 0.05],
+                        ) 
     
     # For each cycle, try to find the following days
     colors = px.colors.qualitative.Set3
@@ -320,12 +406,12 @@ def create_cycle_overlay_plot(df: pd.DataFrame, metric: str, title: str) -> go.F
     for i, (no, cycle_start) in enumerate(first_day_menstrual_cycle.iterrows()):
         cycle_color = colors[i % len(colors)]
         start_date = cycle_start[ids.CYCLE_START_DATE]
-
+        
         try: 
             # Find the end date for this cycle
             next_start_row = get_rows[i+1]
             # Find data points for this cycle
-            cycle_data = df.iloc[no:next_start_row-1].copy()
+            cycle_data = df.iloc[no:next_start_row].copy()
         except: 
             # Find data points for this cycle
             cycle_data = df.iloc[no::].copy()
@@ -340,44 +426,252 @@ def create_cycle_overlay_plot(df: pd.DataFrame, metric: str, title: str) -> go.F
                 line=dict(color=cycle_color),
                 marker=dict(color=cycle_color, size=6),
                 opacity=0.7
-            ))
+            ), row=1, col=1)
             cycle_data[ids.CYCLE_ID] = i
-            all_cycle_data.append(cycle_data[[ids.CYCLE_DAY_NUMBER, metric, ids.CYCLE_ID]])
+            all_cycle_data.append(cycle_data[[ids.CYCLE_DAY_NUMBER, metric, ids.CYCLE_ID, ids.PHASE]])
     
     # Add average line
     if all_cycle_data:
         combined_data = pd.concat(all_cycle_data, ignore_index=True)
         avg_data = combined_data.groupby(ids.CYCLE_DAY_NUMBER)[metric].mean().reset_index()
-        
+        cc = combined_data[[ids.CYCLE_ID, ids.PHASE]].value_counts().to_frame()
+        cc = cc.sort_values(by=[ids.CYCLE_ID, ids.PHASE])
+        avg_phase_length = cc.groupby(ids.PHASE)['count'].mean().reset_index()
+        avg_phase_length['count_round'] = avg_phase_length['count'].round(0)
+        avg_phase_length = avg_phase_length.set_index(ids.PHASE)
+        try: 
+            avg_phase_length = avg_phase_length.drop(index=['Unknown'])
+        except: 
+            pass
+        cycle_length_sum = avg_phase_length['count_round'].sum()
+        avg_data = avg_data[:int(cycle_length_sum)]
+
+        #Create a heatmap with the corresponding colors 
+        follicular_start = avg_phase_length.loc['Menstrual','count_round'] + 1
+        ovulatory_start = cycle_length_sum - avg_phase_length.loc['Luteal','count_round'] - avg_phase_length.loc['Ovulatory','count_round'] + 1
+        ovulatory_end = cycle_length_sum - avg_phase_length.loc['Luteal','count_round']
+        # luteal_start = ovulatory_end + 1
+        dict_phases = {}
+        for day in range(1,int(cycle_length_sum)+1):
+            if day <= avg_phase_length.loc['Menstrual','count_round']:
+                dict_phases[str(day)] = 1
+            elif day >= follicular_start and day < ovulatory_start:
+                dict_phases[str(day)] = 2
+            elif day >= ovulatory_start and day <= ovulatory_end:
+                dict_phases[str(day)] = 3
+            else: #elif cycle_day >= luteal_start:
+                dict_phases[str(day)] = 4
+        df_phase = pd.DataFrame.from_dict(dict_phases, orient='index', columns=['phase'])
+        phase_names = {1: 'Menstrual', 2: 'Follicular', 3: 'Ovulatory', 4: 'Luteal'}
+        df_phase['phase_name'] = df_phase['phase'].map(phase_names)
+
+        # fig.add_trace(go.Scatter(
+        #     x=avg_data[ids.CYCLE_DAY_NUMBER],
+        #     y=avg_data[metric],
+        #     mode='lines',
+        #     name='Average',
+        #     line=dict(color='black', width=3, dash='dash')),
+        #     row=1, col=1)
         fig.add_trace(go.Scatter(
             x=avg_data[ids.CYCLE_DAY_NUMBER],
             y=avg_data[metric],
             mode='lines',
             name='Average',
-            line=dict(color='black', width=3, dash='dash')
-        ))
-        fig2.add_trace(go.Scatter(
-            x=avg_data[ids.CYCLE_DAY_NUMBER],
-            y=avg_data[metric],
-            mode='lines',
-            name='Average',
-            line=dict(color='black', width=3, dash='dash')
-        ))
-    
+            line=dict(color='black', width=3, dash='dash')),
+            row=2, col=1)
+        
+        # Create hover text array
+        hover_text = []   
+        for day in df_phase.index:
+            phase_name = df_phase.loc[day, 'phase_name']
+            hover_text.append(f'Day: {day}<br>Phase: {phase_name}')
+
+        fig.add_trace(go.Heatmap(
+            z=df_phase['phase'].values.reshape(1, -1),  # Reshape to single row
+            x=df_phase.index.astype(int),  # Cycle days as x-axis
+            colorscale=[[0, "#EA5C5C"], [0.33, "#C7EE53"], [0.66, "#EEE453"], [1, "#74DAF1"]],  # Custom colors
+            showscale=False,
+            colorbar=dict(
+                tickvals=[1, 2, 3, 4],
+                ticktext=['Menstrual', 'Follicular', 'Ovulatory', 'Luteal']
+            ),
+            text=np.array(hover_text).reshape(1, -1),
+            hovertemplate='%{text}<extra></extra>'),
+            row=3, col=1)
+            
     # Update layout
     fig.update_layout(
-        title=title,
-        xaxis_title="Cycle Day",
-        yaxis_title=metric,
-        height=500,
-        showlegend=True
+        height=600,
+        # width=800,
+        showlegend=True,
+        margin=dict(l=100, r=150, t=50, b=60),
     )
-    fig2.update_layout(
-        title=title,
-        xaxis_title="Cycle Day",
-        yaxis_title=metric,
-        height=500,
-        showlegend=True
+
+    # Remove all background elements from the heatmap
+    fig.update_xaxes(showgrid=False, zeroline=False, row=3, col=1)
+    fig.update_yaxes(showgrid=False, showticklabels=False, zeroline=False, row=3, col=1)
+    
+    return fig
+
+def create_phase_legend() -> go.Figure:
+    phase_colors = ['#EA5C5C', '#C7EE53', '#EEE453', '#74DAF1']
+    phase_names = ['Menstrual', 'Follicular', 'Ovulatory', 'Luteal']
+    
+    legend_fig = go.Figure()
+    
+    # Add invisible traces just for the legend
+    for phase_name, color in zip(phase_names, phase_colors):
+        legend_fig.add_trace(go.Scatter(
+            x=[0], y=[0],
+            mode='markers',
+            marker=dict(color=color, size=20, symbol='square'),
+            name=phase_name,
+            showlegend=True,
+            hoverinfo='none'
+        ))
+    
+    # Configure the legend-only figure
+    legend_fig.update_layout(
+        height=60,  # Very short height
+        width=800,  # Match your main figure width
+        showlegend=True,
+        margin=dict(l=0, r=0, t=0, b=0),
+        plot_bgcolor='rgba(0,0,0,0)',  # Transparent background
+        paper_bgcolor='rgba(0,0,0,0)',  # Transparent background
+        xaxis=dict(visible=False),  # Hide axes
+        yaxis=dict(visible=False),  # Hide axes
+        hovermode=False, 
+        legend=dict(
+            orientation="h",
+            yanchor="middle",
+            y=0.5,
+            xanchor="center",
+            x=0.5,
+            bgcolor="rgba(255,255,255,0.8)",
+            bordercolor="Black",
+            borderwidth=1,
+            font=dict(size=14)
+        )
     )
     
-    return fig, fig2
+    return legend_fig
+
+def render_stats_tab(df: pd.DataFrame) -> html.Div:
+    """Render the statistical analysis tab"""
+    # Statistical tests and detailed analysis
+    descriptive_table_data, overall_test_data, pairwise_table_data = ld.get_stats(df)
+
+    return html.Div([
+        html.H3("Statistical Analysis - Menstrual Cycle Phases"),
+        
+        # Descriptive Statistics Table
+        html.Div([
+            html.H4("1. Descriptive Statistics by Phase"),
+            html.P("Summary statistics for each metric across all menstrual cycle phases:"),
+            dash_table.DataTable(
+                data=descriptive_table_data,
+                columns=[{"name": col, "id": col} for col in descriptive_table_data[0].keys()] if descriptive_table_data else [],
+                style_cell={'textAlign': 'left', 'fontSize': '12px'},
+                style_data_conditional=[
+                    {
+                        'if': {'row_index': 'odd'},
+                        'backgroundColor': 'rgb(248, 248, 248)'
+                    }
+                ],
+                style_header={
+                    'backgroundColor': 'rgb(230, 230, 230)',
+                    'fontWeight': 'bold',
+                    'fontSize': '13px'
+                },
+                style_cell_conditional=[
+                    {'if': {'column_id': 'Metric'}, 'width': '20%'},
+                    {'if': {'column_id': 'Phase'}, 'width': '12%'},
+                ]
+            )
+        ], style={'margin-bottom': '30px'}),
+        
+        # Overall Test Results Table
+        html.Div([
+            html.H4("2. Overall Statistical Tests"),
+            html.P("Tests to determine if there are any significant differences between phases for each metric:"),
+            dash_table.DataTable(
+                data=overall_test_data,
+                columns=[{"name": col, "id": col} for col in overall_test_data[0].keys()] if overall_test_data else [],
+                style_cell={'textAlign': 'left', 'fontSize': '12px'},
+                style_data_conditional=[
+                    {
+                        'if': {'row_index': 'odd'},
+                        'backgroundColor': 'rgb(248, 248, 248)'
+                    },
+                    {
+                        'if': {
+                            'filter_query': '{Significant} = Yes',
+                            'column_id': 'Significant'
+                        },
+                        'backgroundColor': '#90EE90',
+                        'color': 'black',
+                    }
+                ],
+                style_header={
+                    'backgroundColor': 'rgb(230, 230, 230)',
+                    'fontWeight': 'bold',
+                    'fontSize': '13px'
+                },
+                style_cell_conditional=[
+                    {'if': {'column_id': 'Metric'}, 'width': '18%'},
+                    {'if': {'column_id': 'Test Used'}, 'width': '15%'},
+                    {'if': {'column_id': 'Interpretation'}, 'width': '25%'},
+                ]
+            )
+        ], style={'margin-bottom': '30px'}),
+        
+        # Pairwise Comparisons Table
+        html.Div([
+            html.H4("3. Pairwise Comparisons (Bonferroni Corrected)"),
+            html.P("Detailed comparisons between each pair of menstrual cycle phases:"),
+            dash_table.DataTable(
+                data=pairwise_table_data,
+                columns=[{"name": col, "id": col} for col in pairwise_table_data[0].keys()] if pairwise_table_data else [],
+                style_cell={'textAlign': 'left', 'fontSize': '12px'},
+                style_data_conditional=[
+                    {
+                        'if': {'row_index': 'odd'},
+                        'backgroundColor': 'rgb(248, 248, 248)'
+                    },
+                    {
+                        'if': {
+                            'filter_query': '{Significant} = Yes',
+                            'column_id': 'Significant'
+                        },
+                        'backgroundColor': '#90EE90',
+                        'color': 'black',
+                    }
+                ],
+                style_header={
+                    'backgroundColor': 'rgb(230, 230, 230)',
+                    'fontWeight': 'bold',
+                    'fontSize': '13px'
+                },
+                style_cell_conditional=[
+                    {'if': {'column_id': 'Metric'}, 'width': '18%'},
+                    {'if': {'column_id': 'Comparison'}, 'width': '20%'},
+                    {'if': {'column_id': 'Test Used'}, 'width': '15%'},
+                ]
+            )
+        ], style={'margin-bottom': '30px'}),
+        
+        # Interpretation Guide
+        html.Div([
+            html.H4("Interpretation Guide:"),
+            html.Ul([
+                html.Li("P-value < 0.05 indicates statistical significance"),
+                html.Li("Overall tests: ANOVA used if data is normal with equal variances, otherwise Kruskal-Wallis"),
+                html.Li("Pairwise tests: t-tests used for normal data, Mann-Whitney U for non-normal data"),
+                html.Li("Bonferroni correction: Adjusts p-values for multiple comparisons to reduce false positives"),
+                html.Li("Mean/Median difference: Positive values indicate first phase > second phase"),
+                html.Li("Effect sizes: Cohen's d or median differences help interpret practical significance"),
+                html.Li("Green highlighting indicates statistically significant results (p < 0.05)")
+            ])
+        ], style={'margin-top': '20px', 'backgroundColor': '#f8f9fa', 'padding': '15px', 'border-radius': '5px'})
+    ])
+    

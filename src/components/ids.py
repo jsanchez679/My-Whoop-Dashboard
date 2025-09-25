@@ -25,7 +25,7 @@ PROCESSED_DATA = 'processed-data'
 
 # Trend Tab
 CYCLE_OVERLAY_PLOT = 'cycle-overlay-plot'
-CYCLE_OVERLAY_AVERAGE = 'cycle-overlay-average'
+CYCLE_OVERLAY_LEGEND = 'cycle-overlay-legend'
 TREND_METRIC_DROPDOWN = 'trend-metric-dropdown'
 
 
