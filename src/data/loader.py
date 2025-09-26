@@ -470,7 +470,7 @@ def bonferroni_correction(pairwise_results: dict[str, dict[str]]) -> dict[str, d
     
     return corrected_results
 
-def create_descriptive_stats_table(all_results: list[dict[str]]) -> list[dict[str]]:
+def create_descriptive_stats_table(all_results: list[dict[str]]):# -> list[dict[str]]:
 
     """
     Create a table with descriptive statistics for all metrics and phases
@@ -480,9 +480,12 @@ def create_descriptive_stats_table(all_results: list[dict[str]]) -> list[dict[st
     for result in all_results:
         metric = result['metric']
         desc_stats = result['descriptive_statistics']
-        
+        i = 0
         for phase, stats in desc_stats.items():
             if stats['n'] > 0:  # Only include phases with data
+                if i!= 0: 
+                    metric = ''
+
                 table_data.append({
                     'Metric': metric,
                     'Phase': phase,
@@ -493,10 +496,13 @@ def create_descriptive_stats_table(all_results: list[dict[str]]) -> list[dict[st
                     'Min': round(stats['min'], 2),
                     'Max': round(stats['max'], 2)
                 })
+                i+=1
     
-    return table_data
+    df_table_data = pd.DataFrame(table_data)
 
-def create_overall_test_table(all_results: list[dict[str]]) -> list[dict[str]]:
+    return df_table_data
+
+def create_overall_test_table(all_results: list[dict[str]]):# -> list[dict[str]]:
     """
     Create a table showing overall test results for each metric
     """
@@ -525,10 +531,12 @@ def create_overall_test_table(all_results: list[dict[str]]) -> list[dict[str]]:
                 'Interpretation': overall.get('reason', 'Insufficient data')
             })
     
-    return table_data
+    df_table_data = pd.DataFrame(table_data)
+
+    return df_table_data
 
 def create_pairwise_comparison_table(all_results: list[dict[str]], 
-                                        use_corrected: bool = True) -> list[dict[str]]:
+                                        use_corrected: bool = True):# -> list[dict[str]]:
     """
     Create a table showing pairwise comparisons for each metric
     """
@@ -540,8 +548,12 @@ def create_pairwise_comparison_table(all_results: list[dict[str]],
         # Choose corrected or uncorrected results
         pairwise_results = result['pairwise_corrected'] if use_corrected else result['pairwise_comparisons']
         
+        i=0
         if pairwise_results:
             for comparison, comp_result in pairwise_results.items():
+                if i != 0: 
+                    metric= ''
+
                 # Determine effect size column based on test type
                 effect_size_col = 'Mean Difference' if 'mean_diff' in comp_result else 'Median Difference'
                 effect_size_val = comp_result.get('mean_diff') or comp_result.get('median_diff')
@@ -558,6 +570,7 @@ def create_pairwise_comparison_table(all_results: list[dict[str]],
                     p_value_col: f"{comp_result[p_value_key]:.6f}",
                     'Significant': 'Yes' if comp_result[significance_key] else 'No'
                 })
+                i+=1
         else:
             # Add row indicating no pairwise tests performed
             table_data.append({
@@ -569,7 +582,9 @@ def create_pairwise_comparison_table(all_results: list[dict[str]],
                 'Significant': 'N/A'
             })
     
-    return table_data
+    df_table_data = pd.DataFrame(table_data)
+    
+    return df_table_data
 
 
 

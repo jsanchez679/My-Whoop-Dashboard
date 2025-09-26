@@ -105,19 +105,150 @@ def create_layout(app: Dash) -> html.Div:
                 ],
     )
 
-def create_styled_table(ov_data: pd.DataFrame) -> html.Div:
+def render_overview_tab(df: pd.DataFrame) -> dbc.Container:
+
+    """Render the overview tab"""
+    # Summary statistics
+    total_days = len(df[ids.CYCLE_DATE].unique())
+    no_cycles = df[ids.CYCLE_DAY_NUMBER].value_counts()[1]
+    menstrual_days = len(df[df[ids.PHASE] == ids.MENSTRUAL])
+    avg_cycle_len = df[df[ids.CYCLE_DAY_NUMBER]== 1][ids.CYCLE_LENGTH].mean()
+
+    # Key metrics comparison
+    metrics = [ids.RECOVERY_SCORE,ids.RESTING_HR, ids.HRV, 
+               ids.SLEEP_PERFORMANCE, ids.SLEEP_EFFICIENCY, ids.DAY_STRAIN]
+    
+    # Option 1 DBC
+    rows = []
+    for metric in metrics:
+        if metric in df.columns:
+            follicular_avg = df[df[ids.PHASE] == ids.FOLLICULAR][metric].mean()
+            ovulatory_avg = df[df[ids.PHASE] == ids.OVULATORY][metric].mean()
+            luteal_avg = df[df[ids.PHASE] == ids.LUTEAL][metric].mean()
+            menstrual_avg = df[df[ids.PHASE] == ids.MENSTRUAL][metric].mean()
+            row = {
+                    'Metric': metric,
+                    ids.FOLLICULAR: round(follicular_avg, 2) if not pd.isna(follicular_avg) else 'N/A',
+                    ids.OVULATORY: round(ovulatory_avg, 2) if not pd.isna(ovulatory_avg) else 'N/A',
+                    ids.LUTEAL: round(luteal_avg, 2) if not pd.isna(luteal_avg) else 'N/A',
+                    ids.MENSTRUAL: round(menstrual_avg, 2) if not pd.isna(menstrual_avg) else 'N/A',
+                }
+            rows.append(row)
+    
+        ov_data = pd.DataFrame(rows)
+            
+    return dbc.Container([
+            # Summary cards
+            # First row
+            html.Div([
+                html.Div([
+                    html.H3(f"{total_days}"),
+                    html.P("Total Days Analysed")
+                ], className="summary-card"),
+                html.Div([
+                    html.H3(f"{no_cycles}"),
+                    html.P("No Cycles in Analysis")
+                ], className="summary-card"),
+                html.Div([
+                    html.H3(f"{menstrual_days}"),
+                    html.P("Total Menstrual Days")
+                ], className="summary-card"),
+                html.Div([
+                    html.H3(f"{avg_cycle_len:.1f}"),
+                    html.P("Avg. Cycle Length [days]")
+                ], className="summary-card")
+            ], className="summary-grid"),
+
+            # Comparison table
+            html.H2(" Metrics Comparison"),
+            create_styled_table(ov_data, "custom-table-container")
+
+    ], fluid=True)
+            
+    # Option 2 Normal dash table
+    ov_data = []
+    for metric in metrics:
+        if metric in df.columns:
+            follicular_avg = df[df[ids.PHASE] == ids.FOLLICULAR][metric].mean()
+            ovulatory_avg = df[df[ids.PHASE] == ids.OVULATORY][metric].mean()
+            luteal_avg = df[df[ids.PHASE] == ids.LUTEAL][metric].mean()
+            menstrual_avg = df[df[ids.PHASE] == ids.MENSTRUAL][metric].mean()
+            ov_data.append({
+                'Metric': metric,
+                ids.FOLLICULAR: round(follicular_avg, 2) if not pd.isna(follicular_avg) else 'N/A',
+                ids.OVULATORY: round(ovulatory_avg, 2) if not pd.isna(ovulatory_avg) else 'N/A',
+                ids.LUTEAL: round(luteal_avg, 2) if not pd.isna(luteal_avg) else 'N/A',
+                ids.MENSTRUAL: round(menstrual_avg, 2) if not pd.isna(menstrual_avg) else 'N/A',
+            })
+
+    return html.Div([
+            # Summary cards
+            # First row
+            html.Div([
+                html.Div([
+                    html.H3(f"{total_days}"),
+                    html.P("Total Days Analysed")
+                ], className="summary-card"),
+                html.Div([
+                    html.H3(f"{no_cycles}"),
+                    html.P("No Cycles in Analysis")
+                ], className="summary-card"),
+                html.Div([
+                    html.H3(f"{menstrual_days}"),
+                    html.P("Menstrual Days")
+                ], className="summary-card"),
+                html.Div([
+                    html.H3(f"{avg_cycle_len:.1f}"),
+                    html.P("Avg. Cycle Length [days]")
+                ], className="summary-card")
+            ], className="summary-grid"),
+
+            # Comparison table
+            html.H3(" Metrics Comparison"),
+            dash_table.DataTable(
+                data=ov_data,
+                columns=[{"name": i, "id": i} for i in ['Metric', ids.FOLLICULAR, ids.OVULATORY, 
+                                                                    ids.LUTEAL, ids.MENSTRUAL]],
+                style_cell={'textAlign': 'center',},# 'font_family': 'cursive',},
+                style_data_conditional=[
+                    {
+                        'if': {'column_id': ids.FOLLICULAR},
+                        'backgroundColor': '#c7ee5394'
+                    },
+                    {
+                        'if': {'column_id': ids.OVULATORY},
+                        'backgroundColor': '#eee4538b'
+                    },
+                    {
+                        'if': {'column_id': ids.LUTEAL},
+                        'backgroundColor': '#74daf191'
+                    },
+                    {
+                        'if': {'column_id': ids.MENSTRUAL},
+                        'backgroundColor': '#ea5c5ca8'
+                    },
+                ],
+                style_header={
+                    'backgroundColor': 'rgb(230, 230, 230)',
+                    'fontWeight': 'bold', 'textAlign': 'center',
+                },
+            ),
+            
+            ])
+
+def create_styled_table(data: pd.DataFrame, className: str) -> html.Div:
     """Create a styled DBC table with phase-specific coloring"""
     
     # Create the basic table
     table = dbc.Table.from_dataframe(
-        ov_data, 
+        data, 
         striped=True, 
         bordered=True, 
         hover=True,
         responsive=True,
         className="text-center uniform-columns"
     )
-    return html.Div([table], className="custom-table-container")
+    return html.Div([table], className=className)
 
 def render_sleep_tab(df: pd.DataFrame) -> dbc.Container:
     """Render the sleep analysis tab"""
@@ -195,137 +326,6 @@ def render_recovery_tab(df: pd.DataFrame) -> dbc.Container:
     return html.Div([
         dcc.Graph(figure=fig)
     ])
-
-def render_overview_tab(df: pd.DataFrame) -> dbc.Container:
-
-    """Render the overview tab"""
-    # Summary statistics
-    total_days = len(df[ids.CYCLE_DATE].unique())
-    no_cycles = df[ids.CYCLE_DAY_NUMBER].value_counts()[1]
-    menstrual_days = len(df[df[ids.PHASE] == ids.MENSTRUAL])
-    avg_cycle_len = df[df[ids.CYCLE_DAY_NUMBER]== 1][ids.CYCLE_LENGTH].mean()
-
-    # Key metrics comparison
-    metrics = [ids.RECOVERY_SCORE,ids.RESTING_HR, ids.HRV, 
-               ids.SLEEP_PERFORMANCE, ids.SLEEP_EFFICIENCY, ids.DAY_STRAIN]
-    
-    # Option 1 DBC
-    rows = []
-    for metric in metrics:
-        if metric in df.columns:
-            follicular_avg = df[df[ids.PHASE] == ids.FOLLICULAR][metric].mean()
-            ovulatory_avg = df[df[ids.PHASE] == ids.OVULATORY][metric].mean()
-            luteal_avg = df[df[ids.PHASE] == ids.LUTEAL][metric].mean()
-            menstrual_avg = df[df[ids.PHASE] == ids.MENSTRUAL][metric].mean()
-            row = {
-                    'Metric': metric,
-                    ids.FOLLICULAR: round(follicular_avg, 2) if not pd.isna(follicular_avg) else 'N/A',
-                    ids.OVULATORY: round(ovulatory_avg, 2) if not pd.isna(ovulatory_avg) else 'N/A',
-                    ids.LUTEAL: round(luteal_avg, 2) if not pd.isna(luteal_avg) else 'N/A',
-                    ids.MENSTRUAL: round(menstrual_avg, 2) if not pd.isna(menstrual_avg) else 'N/A',
-                }
-            rows.append(row)
-    
-        ov_data = pd.DataFrame(rows)
-            
-    return dbc.Container([
-            # Summary cards
-            # First row
-            html.Div([
-                html.Div([
-                    html.H3(f"{total_days}"),
-                    html.P("Total Days Analysed")
-                ], className="summary-card"),
-                html.Div([
-                    html.H3(f"{no_cycles}"),
-                    html.P("No Cycles in Analysis")
-                ], className="summary-card"),
-                html.Div([
-                    html.H3(f"{menstrual_days}"),
-                    html.P("Total Menstrual Days")
-                ], className="summary-card"),
-                html.Div([
-                    html.H3(f"{avg_cycle_len:.1f}"),
-                    html.P("Avg. Cycle Length [days]")
-                ], className="summary-card")
-            ], className="summary-grid"),
-
-            # Comparison table
-            html.H2(" Metrics Comparison"),
-            create_styled_table(ov_data)
-
-    ], fluid=True)
-            
-    # Option 2 Normal dash table
-    ov_data = []
-    for metric in metrics:
-        if metric in df.columns:
-            follicular_avg = df[df[ids.PHASE] == ids.FOLLICULAR][metric].mean()
-            ovulatory_avg = df[df[ids.PHASE] == ids.OVULATORY][metric].mean()
-            luteal_avg = df[df[ids.PHASE] == ids.LUTEAL][metric].mean()
-            menstrual_avg = df[df[ids.PHASE] == ids.MENSTRUAL][metric].mean()
-            ov_data.append({
-                'Metric': metric,
-                ids.FOLLICULAR: round(follicular_avg, 2) if not pd.isna(follicular_avg) else 'N/A',
-                ids.OVULATORY: round(ovulatory_avg, 2) if not pd.isna(ovulatory_avg) else 'N/A',
-                ids.LUTEAL: round(luteal_avg, 2) if not pd.isna(luteal_avg) else 'N/A',
-                ids.MENSTRUAL: round(menstrual_avg, 2) if not pd.isna(menstrual_avg) else 'N/A',
-            })
-
-    return html.Div([
-            # Summary cards
-            # First row
-            html.Div([
-                html.Div([
-                    html.H3(f"{total_days}"),
-                    html.P("Total Days Analysed")
-                ], className="summary-card"),
-                html.Div([
-                    html.H3(f"{no_cycles}"),
-                    html.P("No Cycles in Analysis")
-                ], className="summary-card"),
-                html.Div([
-                    html.H3(f"{menstrual_days}"),
-                    html.P("Menstrual Days")
-                ], className="summary-card"),
-                html.Div([
-                    html.H3(f"{avg_cycle_len:.1f}"),
-                    html.P("Avg. Cycle Length [days]")
-                ], className="summary-card")
-            ], className="summary-grid"),
-
-            # Comparison table
-            html.H3(" Metrics Comparison"),
-            dash_table.DataTable(
-                data=ov_data,
-                columns=[{"name": i, "id": i} for i in ['Metric', ids.FOLLICULAR, ids.OVULATORY, 
-                                                                    ids.LUTEAL, ids.MENSTRUAL]],
-                style_cell={'textAlign': 'center',},# 'font_family': 'cursive',},
-                style_data_conditional=[
-                    {
-                        'if': {'column_id': ids.FOLLICULAR},
-                        'backgroundColor': '#c7ee5394'
-                    },
-                    {
-                        'if': {'column_id': ids.OVULATORY},
-                        'backgroundColor': '#eee4538b'
-                    },
-                    {
-                        'if': {'column_id': ids.LUTEAL},
-                        'backgroundColor': '#74daf191'
-                    },
-                    {
-                        'if': {'column_id': ids.MENSTRUAL},
-                        'backgroundColor': '#ea5c5ca8'
-                    },
-                ],
-                style_header={
-                    'backgroundColor': 'rgb(230, 230, 230)',
-                    'fontWeight': 'bold', 'textAlign': 'center',
-                },
-            ),
-            
-            ])
 
 def render_trends_tab(df: pd.DataFrame) -> dbc.Container:
     """Render the trends view tab with cycle overlays"""
@@ -560,6 +560,46 @@ def render_stats_tab(df: pd.DataFrame) -> html.Div:
     """Render the statistical analysis tab"""
     # Statistical tests and detailed analysis
     descriptive_table_data, overall_test_data, pairwise_table_data = ld.get_stats(df)
+
+    return dbc.Container([
+        html.H3("Statistical Analysis - Menstrual Cycle Phases"),
+        # Descriptive Statistics Table
+        html.Div([
+            html.H4("1. Descriptive Statistics by Phase"),
+            html.P("Summary statistics for each metric across all menstrual cycle phases:"),
+            create_styled_table(descriptive_table_data, "stats_table")
+        ]),
+        
+        # Overall Test Results Table
+        html.Div([
+            html.H4("2. Overall Statistical Tests"),
+            html.P("Tests to determine if there are any significant differences between phases for each metric:"),
+            create_styled_table(overall_test_data, "test_table")
+        ]),
+
+        # Pairwise Comparisons Table
+        html.Div([
+            html.H4("3. Pairwise Comparisons (Bonferroni Corrected)"),
+            html.P("Detailed comparisons between each pair of menstrual cycle phases:"),
+            create_styled_table(pairwise_table_data, "pairwise_table")
+        ]),
+
+        # Interpretation Guide
+        html.Div([
+            html.H4("Interpretation Guide:"),
+            html.Ul([
+                html.Li("P-value < 0.05 indicates statistical significance"),
+                html.Li("Overall tests: ANOVA used if data is normal with equal variances, otherwise Kruskal-Wallis"),
+                html.Li("Pairwise tests: t-tests used for normal data, Mann-Whitney U for non-normal data"),
+                html.Li("Bonferroni correction: Adjusts p-values for multiple comparisons to reduce false positives"),
+                html.Li("Mean/Median difference: Positive values indicate first phase > second phase"),
+                html.Li("Effect sizes: Cohen's d or median differences help interpret practical significance"),
+                html.Li("Green highlighting indicates statistically significant results (p < 0.05)")
+            ])
+        ], style={'margin-top': '20px', 'backgroundColor': '#f8f9fa', 'padding': '15px', 'border-radius': '5px'})
+        
+        ], fluid=True)
+    
 
     return html.Div([
         html.H3("Statistical Analysis - Menstrual Cycle Phases"),
