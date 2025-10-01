@@ -24,6 +24,9 @@ def parse_date(date_str: str) -> datetime:
     """Parse date string in DD/MM/YY HH:MM format"""
     if pd.isna(date_str) or date_str == '':
         return None
+    if isinstance(date_str, pd.Timestamp):
+        date_str = date_str.strftime('%Y-%m-%d %H:%M:%S')
+
     try:
         return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
     except:
@@ -194,6 +197,29 @@ def process_data(physiological_df: pd.DataFrame, journal_df: pd.DataFrame,
 def load_data(processed_data: str) -> pd.DataFrame:
     '''Read the JSON file containing the data'''
     return pd.read_json(processed_data, orient='split')
+
+def filter_data(df: pd.DataFrame, selected_years, selected_months):
+    """Filter dataframe by selected years and months"""
+    if df.empty:
+        return df
+    
+    # Ensure dates are datetime objects (they should already be from process_data)
+    # But handle the case where they might be strings when loaded from JSON
+    if not pd.api.types.is_datetime64_any_dtype(df[ids.CYCLE_START_DATE]):
+        df[ids.CYCLE_START_DATE] = df[ids.CYCLE_START_DATE].apply(parse_date)
+    
+    # Remove rows where date parsing failed
+    df = df[df[ids.CYCLE_START_DATE].notna()].copy()
+    
+    # Filter by years
+    if selected_years:
+        df = df[df[ids.CYCLE_START_DATE].dt.year.isin(selected_years)]
+    
+    # Filter by months
+    if selected_months:
+        df = df[df[ids.CYCLE_START_DATE].dt.month.isin(selected_months)]
+    
+    return df
 
 def get_stats(df: pd.DataFrame) -> list:
     """Get the statistics to render in the statistical analysis tab

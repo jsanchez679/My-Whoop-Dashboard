@@ -8,13 +8,14 @@ import pandas as pd
 import numpy as np
 
 from src.data import loader as ld 
+from src.components import year_dropdown, month_dropdown
 
 def create_layout(app: Dash) -> html.Div:
     # Define the app layout
     # Upload buttons style
-    upload_style = {'width': '100%', 'height': '60px', 'lineHeight': '60px',
+    upload_style = {'width': '98%', 'height': '40px', 'lineHeight': '40px',
                         'borderWidth': '1px', 'borderStyle': 'dashed', 'borderRadius': '5px',
-                        'textAlign': 'center', 'margin': '10px'}
+                        'textAlign': 'center', 'margin': '5px'}
     
     return html.Div(
                 className="app-div",
@@ -25,58 +26,92 @@ def create_layout(app: Dash) -> html.Div:
                             style={'textAlign': 'center', 'fontSize': 20}), 
                     html.Hr(),
 
-                    # Data upload section
+                    # Toggle button for upload section
                     html.Div([
-                        html.H3("Upload Your Data Files", style={'textAlign': 'center'}),
-                        html.Div([
-                            html.Div([
-                                html.H4("Physiological Cycles", style={'textAlign': 'center'}),
-                                dcc.Upload(
-                                    id=ids.UPLOAD_PHYSIOLOGICAL,
-                                    children=html.Div(['Drag and Drop or ', html.A('Select Files')]),
-                                    style=upload_style,
-                                    multiple=False
-                                ),
-                                html.Div(id=ids.UPLOAD_STATUS_PHYSIOLOGICAL, style={'textAlign': 'center', 'fontSize': 12})
-                            ], className="upload-box"),
-                            
-                            html.Div([
-                                html.H4("Journal Entries", style={'textAlign': 'center'}),
-                                dcc.Upload(
-                                    id=ids.UPLOAD_JOURNAL,
-                                    children=html.Div(['Drag and Drop or ', html.A('Select Files')]),
-                                    style=upload_style,
-                                    multiple=False
-                                ),
-                                html.Div(id=ids.UPLOAD_STATUS_JOURNAL, style={'textAlign': 'center', 'fontSize': 12})
-                            ], className="upload-box"),
-                            
-                            html.Div([
-                                html.H4("Sleep Data", style={'textAlign': 'center'}),
-                                dcc.Upload(
-                                    id=ids.UPLOAD_SLEEP,
-                                    children=html.Div(['Drag and Drop or ', html.A('Select Files')]),
-                                    style=upload_style,
-                                    multiple=False
-                                ),
-                                html.Div(id=ids.UPLOAD_STATUS_SLEEP, style={'textAlign': 'center', 'fontSize': 12})
-                            ], className="upload-box"),
-                            
-                            html.Div([
-                                html.H4("Workouts", style={'textAlign': 'center'}),
-                                dcc.Upload(
-                                    id=ids.UPLOAD_WORKOUTS,
-                                    children=html.Div(['Drag and Drop or ', html.A('Select Files')]),
-                                    style=upload_style,
-                                    multiple=False
-                                ),
-                                html.Div(id=ids.UPLOAD_STATUS_WORKOUTS, style={'textAlign': 'center', 'fontSize': 12})
-                            ], className="upload-box"),
-                        ], className="upload-grid"),
-                    ], className="upload-section"),
+                        html.H4(
+                            ["Upload Your Data Files ", html.Span("▼", id=ids.UPLOAD_ARROW)],
+                            id=ids.TOGGLE_UPLOAD_BUTTON,
+                            style={
+                                'textAlign': 'center', 
+                                'cursor': 'pointer',
+                                'userSelect': 'none',
+                                'padding': '5px'
+                            }
+                        ),
+                    ], style={'textAlign': 'center'}),
 
+                    # Data upload section
+                    # Collapsible Data upload section
+                    dbc.Collapse(
+                        id=ids.UPLOAD_SECTION_COLLAPSE,
+                        is_open=True,
+                        children=[
+                                html.Div([
+                                    html.Div([
+                                        html.Div([
+                                            html.H5("Physiological Cycles", style={'textAlign': 'center'}),
+                                            dcc.Upload(
+                                                id=ids.UPLOAD_PHYSIOLOGICAL,
+                                                children=html.Div(['Drag and Drop or ', html.A('Select Files')]),
+                                                style=upload_style,
+                                                multiple=False
+                                            ),
+                                            html.Div(id=ids.UPLOAD_STATUS_PHYSIOLOGICAL, style={'textAlign': 'center', 'fontSize': 12})
+                                        ], className="upload-box"),
+                                        
+                                        html.Div([
+                                            html.H5("Journal Entries", style={'textAlign': 'center'}),
+                                            dcc.Upload(
+                                                id=ids.UPLOAD_JOURNAL,
+                                                children=html.Div(['Drag and Drop or ', html.A('Select Files')]),
+                                                style=upload_style,
+                                                multiple=False
+                                            ),
+                                            html.Div(id=ids.UPLOAD_STATUS_JOURNAL, style={'textAlign': 'center', 'fontSize': 12})
+                                        ], className="upload-box"),
+                                        
+                                        html.Div([
+                                            html.H5("Sleep Data", style={'textAlign': 'center'}),
+                                            dcc.Upload(
+                                                id=ids.UPLOAD_SLEEP,
+                                                children=html.Div(['Drag and Drop or ', html.A('Select Files')]),
+                                                style=upload_style,
+                                                multiple=False
+                                            ),
+                                            html.Div(id=ids.UPLOAD_STATUS_SLEEP, style={'textAlign': 'center', 'fontSize': 12})
+                                        ], className="upload-box"),
+                                        
+                                        html.Div([
+                                            html.H5("Workouts", style={'textAlign': 'center'}),
+                                            dcc.Upload(
+                                                id=ids.UPLOAD_WORKOUTS,
+                                                children=html.Div(['Drag and Drop or ', html.A('Select Files')]),
+                                                style=upload_style,
+                                                multiple=False
+                                            ),
+                                            html.Div(id=ids.UPLOAD_STATUS_WORKOUTS, style={'textAlign': 'center', 'fontSize': 12})
+                                        ], className="upload-box"),
+                                    ], className="upload-grid"),
+                                ], className="upload-section"), 
+                        ]),
                     html.Hr(),
 
+                    # Year and Month Dropdown
+                    html.Div(
+                        className="dropdown-container",
+                        children=[
+                            html.H5("Filter your data  ▶ ", style={'textAlign': 'center', 'width': '200px'}),
+                            year_dropdown.render(app),
+                            month_dropdown.render(app),
+                            html.Hr(),
+                        ],
+                    style={'margin-bottom': '20px',"display": "flex",
+                            "flexDirection": "row",
+                            "alignItems": "center",   # vertically centers label/button with dropdown
+                            "width": "96%",
+                            "margin-right": "2%",
+                            "margin-left": "2%"}
+                    ),
                     # Main dashboard content
                     html.Div([
                         # Tabs
@@ -99,9 +134,6 @@ def create_layout(app: Dash) -> html.Div:
                     html.Div(id=ids.STORED_DATA_SLEEP, style={'display': 'none'}),
                     html.Div(id=ids.STORED_DATA_WORKOUTS, style={'display': 'none'}),
                     html.Div(id=ids.PROCESSED_DATA, style={'display': 'none'}),
-
-                    # bar_chart.render(app, data),
-                    # pie_chart.render(app, data),
                 ],
     )
 

@@ -1,4 +1,7 @@
 # List of identifiers
+TOGGLE_UPLOAD_BUTTON = 'toggle-upload-button'
+UPLOAD_SECTION_COLLAPSE = 'upload-section-collapse'
+UPLOAD_ARROW = 'upload-arrow'
 
 # Dashboard Top
 UPLOAD_PHYSIOLOGICAL = 'upload-physiological'
